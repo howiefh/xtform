@@ -7,7 +7,7 @@
 
 /*jshint unused:false*/
 var xtForm = angular.module('xtForm', []);
-xtForm.directive('ngModel', ["xtFormConfig", "$rootScope", "$interpolate", "$document", function (xtFormConfig, $rootScope, $interpolate, $document) {
+xtForm.directive('ngModel', function (xtFormConfig, $rootScope, $interpolate, $document) {
     'use strict';
 
     var UNTOUCHED_CLASS = 'ng-untouched',
@@ -115,9 +115,9 @@ xtForm.directive('ngModel', ["xtFormConfig", "$rootScope", "$interpolate", "$doc
             }
         }
     };
-}]);
+});
 xtForm
-    .directive('xtForm', ["$timeout", function ($timeout) {
+    .directive('xtForm', function ($timeout) {
         'use strict';
 
         return {
@@ -139,8 +139,8 @@ xtForm
                     });
             }
         };
-    }])
-    .controller('XtFormController', ["$scope", "$element", "$attrs", "xtFormConfig", "$window", function ($scope, $element, $attrs, xtFormConfig, $window) {
+    })
+    .controller('XtFormController', function ($scope, $element, $attrs, xtFormConfig, $window) {
         'use strict';
 
         var vm = this,
@@ -199,7 +199,7 @@ xtForm
             }
 
         });
-    }]);
+    });
 xtForm.provider('xtFormConfig', function () {
     'use strict';
 
@@ -282,7 +282,7 @@ xtForm.provider('xtFormConfig', function () {
 
     self.setDefaultValidationStrategy('dirtyOrSubmitted');
 });
-xtForm.directive('xtValidationInline', ["$templateCache", function ($templateCache) {
+xtForm.directive('xtValidationInline', function ($templateCache) {
     'use strict';
 
     var _uniqueIdCounter = 0;
@@ -301,7 +301,7 @@ xtForm.directive('xtValidationInline', ["$templateCache", function ($templateCac
         },
         link: function (scope, element, attrs) {
 
-            var inputId = attrs['for'] || attrs.xtValidationInline;
+            var inputId = attrs.for || attrs.xtValidationInline;
             if (angular.isUndefined(inputId)) {
                 throw new Error('The validation input id must be specified eg. for="id"');
             }
@@ -366,8 +366,8 @@ xtForm.directive('xtValidationInline', ["$templateCache", function ($templateCac
             activate();
         }
     };
-}]);
-xtForm.directive('xtValidationSummary', ["$templateCache", function ($templateCache) {
+});
+xtForm.directive('xtValidationSummary', function ($templateCache) {
     'use strict';
 
     return {
@@ -409,20 +409,18 @@ xtForm.directive('xtValidationSummary', ["$templateCache", function ($templateCa
             scope.$on('XtForm.ErrorsUpdated', redrawErrors);
         }
     };
-}]);
-xtForm.directive('xtValidationTooltip', function () {
+});
+xtForm.directive('xtValidationTooltip', function ($timeout) {
     'use strict';
 
     return {
-        require: ['^xtForm', '^ngModel'],
+        require: '^xtForm',
         restrict: 'EA',
-        link: function (scope, element, attrs, ctrls) {
+        link: function (scope, element, attrs, xtForm) {
 
-            var xtForm = ctrls[0];
-            var ngModel = ctrls[1];
-
-            var ngModelElement;
-            var lastErrors;
+            var ngModelElement,
+                ngModel,
+                lastErrors;
 
             /**
              * Activates the directive
@@ -440,32 +438,29 @@ xtForm.directive('xtValidationTooltip', function () {
                 });
             }
 
-            scope.showErrors = function() {
-                var errors = element.attr('tooltip');
-                if(errors == '{{showErrors()}}')
-                    errors = '';
-                return errors;
-            }
-
             function setupTooltipElement() {
 
                 element.addClass('xt-error-container');
 
-                element.attr('tooltip-placement', 'top');
-                element.attr('tooltip', '{{showErrors()}}')
-                element.attr('tooltip-trigger', 'mouseenter');
-                element.attr('tooltip-enable', '!' + xtForm.form.$name + '.' + element.attr('name') + '.$valid');
-                // remove the attribute to avoid indefinite loop.
-                // see http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs
-                element.removeAttr("xt-validation-tooltip");
+                // default SELECT tooltip placement to top
+                if (element[0].nodeName.toUpperCase() === 'SELECT' && !attrs.placement) {
+                    attrs.placement = 'top';
+                    element.attr('placement', attrs.placement);
+                }
 
-                $compile(element)(scope);
+                element.tooltip({
+                    animation: false,
+                    html: true,
+                    placement: attrs.placement || 'bottom',
+                    trigger: xtForm.tooltipTrigger || 'manual',
+                    container: attrs.container || 'body'
+                });
             }
 
             function setupNgModel() {
 
                 // allow for a different tooltip container that is not on the ngModel element
-                var ngModelElementId = attrs['for'] || attrs.xtValidationTooltip;
+                var ngModelElementId = attrs.for || attrs.xtValidationTooltip;
                 ngModelElement = ngModelElementId ?
                     angular.element(document.getElementById(ngModelElementId)) :
                     element;
@@ -475,12 +470,23 @@ xtForm.directive('xtValidationTooltip', function () {
                 if (!!ngModelElement.attr('required')) {
                     ngModelElement.attr('aria-required', true);
                 }
+
+                // TODO This is a HACK to ensure the ngModel controller is created on the element before usage.
+                // FIXME this should be removed and replaced with an alternative method perhaps on the ngModel directive
+                // to register with xtform controller
+                $timeout(function () {
+                    ngModel = ngModelElement.controller('ngModel');
+                    if (!ngModel) {
+                        throw new Error('Cannot find ngModel element for xtValidationTooltip');
+                    }
+                });
             }
 
             function redrawErrors() {
 
                 if (ngModel.$xtErrors.length === 0) {
                     lastErrors = null;
+                    element.tooltip('hide');
                     return;
                 }
 
@@ -498,14 +504,20 @@ xtForm.directive('xtValidationTooltip', function () {
                     lastErrors = errors;
 
                     setTimeout(function () {
-                        element.attr('tooltip', errors);
+                        element
+                            .attr('title', errors)
+                            .tooltip('fixTitle')
+                            .tooltip('show');
                     });
                 }
+            }
+
+            if (!$ || !angular.isFunction($.fn.tooltip)) {
+                throw new Error('xtform requires a jquery tooltip plugin, like bootstrap.js');
             }
 
             activate();
         }
     };
 });
-
 })();
