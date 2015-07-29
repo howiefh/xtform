@@ -440,23 +440,26 @@ xtForm.directive('xtValidationTooltip', function () {
                 });
             }
 
+            scope.showErrors = function() {
+                var errors = element.attr('tooltip');
+                if(errors == '{{showErrors()}}')
+                    errors = '';
+                return errors;
+            }
+
             function setupTooltipElement() {
 
                 element.addClass('xt-error-container');
 
-                // default SELECT tooltip placement to top
-                if (element[0].nodeName.toUpperCase() === 'SELECT' && !attrs.placement) {
-                    attrs.placement = 'top';
-                    element.attr('placement', attrs.placement);
-                }
+                element.attr('tooltip-placement', 'top');
+                element.attr('tooltip', '{{showErrors()}}')
+                element.attr('tooltip-trigger', 'mouseenter');
+                element.attr('tooltip-enable', '!' + xtForm.form.$name + '.' + element.attr('name') + '.$valid');
+                // remove the attribute to avoid indefinite loop.
+                // see http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs
+                element.removeAttr("xt-validation-tooltip");
 
-                element.tooltip({
-                    animation: false,
-                    html: true,
-                    placement: attrs.placement || 'bottom',
-                    trigger: xtForm.tooltipTrigger || 'manual',
-                    container: attrs.container || 'body'
-                });
+                $compile(element)(scope);
             }
 
             function setupNgModel() {
@@ -478,7 +481,6 @@ xtForm.directive('xtValidationTooltip', function () {
 
                 if (ngModel.$xtErrors.length === 0) {
                     lastErrors = null;
-                    element.tooltip('hide');
                     return;
                 }
 
@@ -496,16 +498,9 @@ xtForm.directive('xtValidationTooltip', function () {
                     lastErrors = errors;
 
                     setTimeout(function () {
-                        element
-                            .attr('title', errors)
-                            .tooltip('fixTitle')
-                            .tooltip('show');
+                        element.attr('tooltip', errors);
                     });
                 }
-            }
-
-            if (!$ || !angular.isFunction($.fn.tooltip)) {
-                throw new Error('xtform requires a jquery tooltip plugin, like bootstrap.js');
             }
 
             activate();
