@@ -410,7 +410,7 @@ xtForm.directive('xtValidationSummary', ["$templateCache", function ($templateCa
         }
     };
 }]);
-xtForm.directive('xtValidationTooltip', function () {
+xtForm.directive('xtValidationTooltip',['$compile', function ($compile) {
     'use strict';
 
     return {
@@ -442,22 +442,23 @@ xtForm.directive('xtValidationTooltip', function () {
 
             scope.showErrors = function() {
                 var errors = element.attr('tooltip');
-                if(errors == '{{showErrors()}}')
+                if(errors === '{{showErrors()}}') {
                     errors = '';
+                }
                 return errors;
-            }
+            };
 
             function setupTooltipElement() {
 
                 element.addClass('xt-error-container');
 
                 element.attr('tooltip-placement', 'top');
-                element.attr('tooltip', '{{showErrors()}}')
+                element.attr('tooltip', '{{showErrors()}}');
                 element.attr('tooltip-trigger', 'mouseenter');
                 element.attr('tooltip-enable', '!' + xtForm.form.$name + '.' + element.attr('name') + '.$valid');
                 // remove the attribute to avoid indefinite loop.
                 // see http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs
-                element.removeAttr("xt-validation-tooltip");
+                element.removeAttr('xt-validation-tooltip');
 
                 $compile(element)(scope);
             }
@@ -506,7 +507,7 @@ xtForm.directive('xtValidationTooltip', function () {
             activate();
         }
     };
-});
+}]);
 
 })();
 angular.module('xtForm').run(['$templateCache', function($templateCache) {
