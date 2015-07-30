@@ -410,7 +410,7 @@ xtForm.directive('xtValidationSummary', ["$templateCache", function ($templateCa
         }
     };
 }]);
-xtForm.directive('xtValidationTooltip',['$compile', function ($compile) {
+xtForm.directive('xtValidationTooltip',['$compile', 'xtFormConfig', '$interpolate', function ($compile, xtFormConfig, $interpolate) {
     'use strict';
 
     return {
@@ -419,10 +419,9 @@ xtForm.directive('xtValidationTooltip',['$compile', function ($compile) {
         link: function (scope, element, attrs, ctrls) {
 
             var xtForm = ctrls[0];
-            var ngModel = ctrls[1];
+            var defaultErrors = xtFormConfig.getErrorMessages();
 
             var ngModelElement;
-            var lastErrors;
 
             /**
              * Activates the directive
@@ -431,36 +430,6 @@ xtForm.directive('xtValidationTooltip',['$compile', function ($compile) {
 
                 setupNgModel();
                 setupTooltipElement();
-
-                // Subscribe to "errors updated" event and redraw errors when changed
-                scope.$on('XtForm.ErrorsUpdated', function (message, model) {
-                    if (model === null || model === ngModel) {
-                        redrawErrors();
-                    }
-                });
-            }
-
-            scope.showErrors = function() {
-                var errors = element.attr('tooltip');
-                if(errors === '{{showErrors()}}') {
-                    errors = '';
-                }
-                return errors;
-            };
-
-            function setupTooltipElement() {
-
-                element.addClass('xt-error-container');
-
-                element.attr('tooltip-placement', 'top');
-                element.attr('tooltip', '{{showErrors()}}');
-                element.attr('tooltip-trigger', 'mouseenter');
-                element.attr('tooltip-enable', '!' + xtForm.form.$name + '.' + element.attr('name') + '.$valid');
-                // remove the attribute to avoid indefinite loop.
-                // see http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs
-                element.removeAttr('xt-validation-tooltip');
-
-                $compile(element)(scope);
             }
 
             function setupNgModel() {
@@ -478,30 +447,65 @@ xtForm.directive('xtValidationTooltip',['$compile', function ($compile) {
                 }
             }
 
-            function redrawErrors() {
+            function setupTooltipElement() {
+                // String concatenation. To get expression like : 
+                // (formName.elementName.$error.required ? "":"The field is required. ") + (formName.elementName.$error.minlength ? "":"The field is minlength is 6. ")
+                var pre = '!' + xtForm.form.$name + '.' + ngModelElement.attr('name');
+                var errorPre = pre + '.$error';
 
-                if (ngModel.$xtErrors.length === 0) {
-                    lastErrors = null;
-                    return;
-                }
-
-                // hmm reduce adds br to front of string..
-                var noOfErrors = attrs.multiple ? ngModel.$xtErrors.length : 1;
-                var errors = ngModel.$xtErrors
-                    .slice(0, noOfErrors)
+                var errors = getErrors()
                     .map(function (value) {
-                        return value.message;
+                        return '(' + errorPre + '.' + value.key + '?"":"' + value.message + '.  ")';
                     })
-                    .join('<br />');
+                    .join(' + ');
 
-                // only redraw if needed
-                if (errors !== lastErrors) {
-                    lastErrors = errors;
+                element.addClass('xt-error-container');
 
-                    setTimeout(function () {
-                        element.attr('tooltip', errors);
-                    });
-                }
+                element.attr('tooltip-placement', 'top');
+                element.attr('tooltip', '{{' + errors + '}}');
+                element.attr('tooltip-trigger', 'mouseenter');
+                element.attr('tooltip-class', 'xtClass');
+
+                element.attr('tooltip-enable', pre + '.$valid');
+                // remove the attribute to avoid indefinite loop.
+                // see http://stackoverflow.com/questions/19224028/add-directives-from-directive-in-angularjs
+                element.removeAttr(attrs.$attr.xtValidationTooltip);
+
+                $compile(element)(scope);
+            }
+
+            /**
+             * Gets All error messages on element 
+             */
+            function getErrors() {
+                var errors = [];
+
+                angular.forEach(attrs, function (attrValue, attrKey) {
+                    var key = attrKey;
+
+                    if (attrKey.indexOf('ng') === 0) {
+                        key = attrKey.substring(2);
+                    } else if (attrKey.toLowerCase() === 'type') {
+                        key = attrValue.toLowerCase();
+                    }
+                    if (key in defaultErrors) {
+                        var error = {
+                            key: key,
+                            message: getErrorMessageForKey(key)
+                        };
+                        errors.push(error);
+                    }
+                });
+                return errors;
+            }
+
+            function getErrorMessageForKey(key) {
+                var attrKey = 'msg' + key[0].toUpperCase() + key.substring(1);
+
+                // use either the provided string as an interpolated attribute, or the default message
+                return attrs[attrKey] ?
+                    attrs[attrKey] :
+                    $interpolate(defaultErrors[key])(attrs);
             }
 
             activate();

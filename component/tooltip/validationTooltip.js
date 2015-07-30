@@ -7,7 +7,6 @@ xtForm.directive('xtValidationTooltip',['$compile', 'xtFormConfig', '$interpolat
         link: function (scope, element, attrs, ctrls) {
 
             var xtForm = ctrls[0];
-            var ngModel = ctrls[1];
             var defaultErrors = xtFormConfig.getErrorMessages();
 
             var ngModelElement;
