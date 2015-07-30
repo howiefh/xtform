@@ -484,7 +484,7 @@ xtForm.directive('xtValidationTooltip',['$compile', 'xtFormConfig', '$interpolat
                     var key = attrKey;
 
                     if (attrKey.indexOf('ng') === 0) {
-                        key = attrKey.substring(2);
+                        key = attrKey.substring(2).toLowerCase();
                     } else if (attrKey.toLowerCase() === 'type') {
                         key = attrValue.toLowerCase();
                     }

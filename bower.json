@@ -5,6 +5,7 @@
   "authors": [
     "Brent McKendrick <www.brentmckendrick.com>"
   ],
+  "main": "./dist/xtForm.tpl.js",
   "description": "AngularJS form validation extensions",
   "keywords": [
     "angularjs",
